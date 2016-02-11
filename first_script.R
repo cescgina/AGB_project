@@ -10,7 +10,7 @@ tumor_test <- c()
 for (file in files){
   
   # Read file and prepare data
-  data <- read.csv(file, sep="\t", header=TRUE, nrows = 20531, row.names=1)
+  data <- read.csv(file, sep="\t", header=TRUE, nrows = 20532, row.names=1)
   data <- na.omit(data)
   
   # Eliminate normal patients
@@ -23,6 +23,9 @@ for (file in files){
   mig <- dim(tumor)[2]/2
   tumor_training <- c(tumor_training, tumor[,c(1:mig)])
   tumor_test <- c(tumor_test, tumor[,c((mig+1):(mig*2))])
+  
+  # Start analysis
+  summary(tumor_training)
   
 }
 training <- data.frame()
