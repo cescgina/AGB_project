@@ -93,17 +93,28 @@ for (cancer in tumors){
   assign(cancer, readRDS(file=paste0(cancer,"_training_RDS.bin")))
   Pg_names <- c(Pg_names, paste0("Pg_", cancer))
 }
-# Total number of patients with tumor in the training set
-total_n_patients <- sum(sapply(tumors, function(x){get(x)[,1]}))
 
 # Caclulates the probability of a gene to be up, down or no_change given it is 
 # of a given tumor
 Pg_tumor <- c()
 for (cancer in tumors){
   n_patients <- sum(get(cancer)[,1])
-  assign(paste0("Pg_", cancer), apply(get(cancer), c(1,2), function(x){x/ n_patients}))
-  Pg_tumor <- c(Pg_tumor, get(paste0("Pg_", cancer)))
+  name_v <- paste0("Pg_", cancer)
+  assign(name_v, apply(get(cancer), c(1,2), function(x){x/ n_patients}))
+  Pg_tumor <- c(Pg_tumor, get(name_v))
 }
+
+# Total number of patients with tumor in the training set
+total_n_patients <- sum(sapply(tumors, function(x){get(x)[,1]}))
 
 # Calculates the probability of being up, down or no_change and of a tumor
 # i.e it is not the conditional probability
+Pg_tumor_state <- c()
+for (cancer in tumors){
+  name_v <- paste0("Pg_", cancer, "_state")
+  assign(name_v, apply(get(cancer), c(1,2), function(x){x/ total_n_patients}))
+  Pg_tumor_state <- c(Pg_tumor_state, get(name_v))
+}
+
+# Calculates the probability of being up, down or no_change 
+P_state = data.frame(row.names = c("no_change", "up", "down"), )
