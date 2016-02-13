@@ -71,6 +71,9 @@ for (cancer in tumors){
   # freq <- apply(freq, c(1,2), function(x){x+1})
   saveRDS(freq, file=paste0(cancer,"_training_RDS.bin"))
   
+  #From timet to time it is advaisable to restart the session to free memory of the
+  #r session with ctrl + shift + F10, and continue where we left it
+  
   # Store the value
   assign(cancer, freq)
   
@@ -85,27 +88,33 @@ for (cancer in tumors){
 #   tumor_test <- rbind(tumor_test, get(file))
 }
 info <- mget(tumors)
-assign(cancer, readRDS(paste0(cancer, "_training_RDS.bin")))
-#From now and then it is advaisable to restart the session to free memory of the
-#r session with ctrl + shift + F10
-Pg_names <- c()
 for (cancer in tumors){
-  assign(cancer, readRDS(file=paste0(cancer,"_training_RDS.bin")))
-  Pg_names <- c(Pg_names, paste0("Pg_", cancer))
+  assign(cancer, readRDS(paste0(cancer, "_training_RDS.bin")))
 }
 
-# Caclulates the probability of a gene to be up, down or no_change given it is 
-# of a given tumor
-Pg_tumor <- c()
+
 for (cancer in tumors){
-  n_patients <- sum(get(cancer)[,1])
-  name_v <- paste0("Pg_", cancer)
-  assign(name_v, apply(get(cancer), c(1,2), function(x){x/ n_patients}))
-  Pg_tumor <- c(Pg_tumor, get(name_v))
+  assign(cancer, readRDS(file=paste0(cancer,"_training_RDS.bin")))
 }
 
 # Total number of patients with tumor in the training set
 total_n_patients <- sum(sapply(tumors, function(x){get(x)[,1]}))
+
+# Caclulates the probability of a gene to be up, down or no_change given it is 
+# of a given tumor
+Pg_tumor <- c() # Probability of genes of a given tumor of being up, down or no_
+P_cancer <- c() # Stores the prior probability 
+for (cancer in tumors){
+  n_patients <- sum(get(cancer)[,1])
+  name_v <- paste0("Pg_", cancer)
+  assign(name_v, apply(get(cancer), c(1,2), function(x){x/ n_patients}))
+  Pg_tumor <- c(Pg_tumor, name_v)
+  
+  
+  cancer_n <- paste0("P_", cancer)
+  P_cancer[cancer_n] <- n_patients/total_n_patients
+}
+
 
 # Calculates the probability of being up, down or no_change and of a tumor
 # i.e it is not the conditional probability
@@ -116,5 +125,7 @@ for (cancer in tumors){
   Pg_tumor_state <- c(Pg_tumor_state, get(name_v))
 }
 
-# Calculates the probability of being up, down or no_change 
-P_state = data.frame(row.names = c("no_change", "up", "down"), )
+# Calculates the probability of being up, down or no_change regardless of which 
+# type of cancer 
+
+genes_names <- colnames(brca)
