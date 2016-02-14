@@ -8,9 +8,6 @@ setwd(wd)
 final_txt <- "_gene_zscore_full-filtered.txt"
 tumors <- c("brca", "kirc", "prad", "coad", "luad", "thca", "hnsc", "lusc")
 
-# A list to store the dataframes of each cancer
-tumor_testing <- data.frame()
-
 # Needed to classify the data.frame when we read it
 factorize <- function(invec) {
   # from: http://stackoverflow.com/a/35338274/
@@ -34,7 +31,8 @@ for (cancer in tumors){
   dataset <- read.csv(file, sep="\t", header=TRUE, nrows = 20531, row.names = 1)
   dataset <- na.omit(dataset)
   
-  # We stay with just the gene number just in case the letter  or ?create some problems
+  # We stay with just the gene number just in case the letter  or ?
+  # create some problems
   gene_names <- data.frame(do.call(rbind, strsplit(rownames(dataset), "|", fixed=TRUE)))[,2]
   rownames(dataset) <- gene_names
   rm(gene_names)
@@ -48,24 +46,22 @@ for (cancer in tumors){
   
   #Split for training and testing purposes
   mig <- dim(tumor)[2]/2
-  tumor_training <- tumor[,c(1:mig)]
-  tumor_test <- tumor[,c((mig+1):(mig*2))]
-  rm(tumor)
+#   tumor_training <- tumor[,c(1:mig)]
+#   tumor_test <- tumor[,c((mig+1):(mig*2))]
+#   rm(tumor)
   # tumor_testing <- c(tumor_testing, tumor_test)
   
   # If we want to ensure randomness we should use:
-  # selected<-sample(ncol(tumor), mig) 
-  # tumor_training <- tumor[selected,] 
-  # tumor_test <- tumor[-selected,] 
+  selected<-sample(ncol(tumor), mig) 
+  tumor_training <- tumor[,selected] 
+  tumor_test <- tumor[,-selected] 
+  rm(tumor)
   
   # Calculates the number of times each gene have each type of expression
-  occurences <- apply(tumor_training, 1, table)
-  max_length <- max(sapply(occurences, length))
-  freq <- sapply(occurences, function(x){
-    c(x, rep(0, max_length - length(x)))
-  })
-  rm(occurences)
-  rownames(freq) <- c("no_change", "up", "down")
+  rownames_m <- c('up', 'no_change', 'down')
+  freq <- apply(tumor_training, 1, function(x)
+    tabulate(factor(x, levels = rownames_m), length(rownames_m)))
+  rownames(freq) <- rownames_m
   
   # Adds one as a pseudocount before doing any probability
   # freq <- apply(freq, c(1,2), function(x){x+1})
@@ -73,11 +69,7 @@ for (cancer in tumors){
   
   #From timet to time it is advaisable to restart the session to free memory of the
   #r session with ctrl + shift + F10, and continue where we left it
-  
-  # Store the value
-  assign(cancer, freq)
-  
-  
+
 #   # Count how many of each type are and assign them to the name of the cancer
 #   # This way we can calculate the probability of up, down or no_change in a tumor
 #   assign(file, table(unlist(tumor_training)))
@@ -87,14 +79,10 @@ for (cancer in tumors){
 #   tumor_training <- rbind(tumor_training, get(file))
 #   tumor_test <- rbind(tumor_test, get(file))
 }
-info <- mget(tumors)
+
+# Read the prepared data
 for (cancer in tumors){
   assign(cancer, readRDS(paste0(cancer, "_training_RDS.bin")))
-}
-
-
-for (cancer in tumors){
-  assign(cancer, readRDS(file=paste0(cancer,"_training_RDS.bin")))
 }
 
 # Total number of patients with tumor in the training set
@@ -117,7 +105,7 @@ for (cancer in tumors){
 
 
 # Calculates the probability of being up, down or no_change and of a tumor
-# i.e it is not the conditional probability
+# i.e it is not the conditional probability of a given cancer
 Pg_tumor_state <- c()
 for (cancer in tumors){
   name_v <- paste0("Pg_", cancer, "_state")
@@ -127,5 +115,3 @@ for (cancer in tumors){
 
 # Calculates the probability of being up, down or no_change regardless of which 
 # type of cancer 
-
-genes_names <- colnames(brca)
