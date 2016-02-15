@@ -35,7 +35,6 @@ for (cancer in tumors){
   # create some problems
   gene_names <- data.frame(do.call(rbind, strsplit(rownames(dataset), "|", fixed=TRUE)))[,2]
   rownames(dataset) <- gene_names
-  rm(gene_names)
   
   # Eliminate normal patients
   tumor <- dataset[, grep("T$", names(dataset))]
@@ -85,47 +84,76 @@ for (cancer in tumors){
   assign(cancer, readRDS(paste0(cancer, "_training_RDS.bin")))
 }
 
-# Total number of patients with tumor in the training set
-total_n_patients <- sum(sapply(tumors, function(x){get(x)[,1]}))
-
-# Caclulates the probability of a gene to be up, down or no_change given it is 
-# of a given tumor
-Pg_tumor <- c() # Probability of genes of a given tumor of being up, down or no_
-P_cancer <- c() # Stores the prior probability 
-for (cancer in tumors){
-  n_patients <- sum(get(cancer)[,1])
-  name_v <- paste0("Pg_", cancer)
-  assign(name_v, apply(get(cancer), c(1,2), function(x){x/ n_patients}))
-  Pg_tumor <- c(Pg_tumor, name_v)
-  
-  
-  cancer_n <- paste0("P_", cancer)
-  P_cancer[cancer_n] <- n_patients/total_n_patients
-}
-
-
-# Calculates the probability of being up, down or no_change and of a tumor
-# i.e it is not the conditional probability of a given cancer
-Pg_tumor_state <- c()
-for (cancer in tumors){
-  name_v <- paste0("Pg_", cancer, "_state")
-  assign(name_v, apply(get(cancer), c(1,2), function(x){x/ total_n_patients}))
-  Pg_tumor_state <- c(Pg_tumor_state, get(name_v))
-}
-
 # Calculates the probability of being up, down or no_change regardless of which 
 # type of cancer  it has been 
 data_g <- matrix(0, nrow = 3, ncol = 20531)
 for (cancer in tumors){
-  mcol <- match(colnames(get(cancer)), colnames(data_g))
-  if (cancer == "brca"){ # TODO: remove this dependency to the brca dataset
+  col_cancer <- colnames(get(cancer))
+  mcol <- match(col_cancer, colnames(data_g))
+  if (length(col_cancer) == 20531){
     data_g <- get(cancer) + data_g
   } else {
     data_g[, mcol] <- get(cancer) + data_g[, mcol]
   }
 }
-total_g <- apply(data_g, 2, sum)
-P_g <- t(t(data_g) / total_g) # Calculates the probability of a gene to be up, 
+patient_gene <- apply(data_g, 2, sum)
+P_g <- t(t(data_g) / patient_gene) # Calculates the probability of a gene to be up, 
 # down or no_change taking into account all the tumor patients
 
+# Total number of patients with tumor in the training set
+patient_tumor <-  sapply(tumors, function(x)sum(get(x)[,1]))
+total_n_patients <- sum(patient_tumor)
 
+# Caclulates the probability of a gene to be up, down or no_change given it is 
+# of a given tumor
+Pg_tumor <- c() # Probability of genes of a given tumor of being up, down or no_
+P_cancer <- c() # Stores the prior probability 
+probability <- function(x, n_patient){
+  x/n_patient
+}
+for (cancer in tumors){
+  n_patients <- sum(get(cancer)[,1])
+  name_v <- paste0("Pg_", cancer)
+  assign(name_v, apply(get(cancer), c(1,2), probability, 
+                       n_patient = patient_tumor[cancer]))
+  
+  Pg_tumor <- c(Pg_tumor, name_v)
+  P_cancer[cancer] <- n_patients/total_n_patients
+}
+
+# Calculates the probability of being up, down or no_change and of a tumor
+# i.e it is not the conditional probability of a given cancer
+Pg_tumor_state <- c()
+
+for (cancer in tumors){
+  name_v <- paste0("Pg_", cancer, "_state")
+  assign(name_v, apply(get(cancer), c(1,2), probability, 
+                       n_patient = total_n_patients))
+  Pg_tumor_state <- c(Pg_tumor_state, name_v)
+}
+
+# Calculates the entropy of the labels (which type of cancer)
+partial_entropy <- function(x){
+  if (x != 0){
+    - x * log2(x)
+  }
+}
+entropy <- sum(sapply(P_cancer,  partial_entropy))
+
+# Calculates the relative entropy of a given gene
+gene <- "100130426" 
+val <- 0
+for (state in rownames_m){
+  for (dataset in Pg_tumor_state){
+    if (gene %in% colnames(get(dataset))){
+      if (get(dataset)[state, gene] != 0){
+        new_val <- get(dataset)[state, gene ] * 
+          log2(get(dataset)[state, gene]/P_g[state, gene]) 
+        val <- val + new_val
+      }
+    }
+  }
+}
+
+# Calculates the mutual information of the given gene
+result <- entropy + val
