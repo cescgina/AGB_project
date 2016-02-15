@@ -61,7 +61,7 @@ for (cancer in tumors){
   rownames_m <- c('up', 'no_change', 'down')
   freq <- apply(tumor_training, 1, function(x)
     tabulate(factor(x, levels = rownames_m), length(rownames_m)))
-  rownames(freq) <- rownames_m
+  row.names(freq) <- rownames_m
   
   # Adds one as a pseudocount before doing any probability
   # freq <- apply(freq, c(1,2), function(x){x+1})
@@ -114,4 +114,18 @@ for (cancer in tumors){
 }
 
 # Calculates the probability of being up, down or no_change regardless of which 
-# type of cancer 
+# type of cancer  it has been 
+data_g <- matrix(0, nrow = 3, ncol = 20531)
+for (cancer in tumors){
+  mcol <- match(colnames(get(cancer)), colnames(data_g))
+  if (cancer == "brca"){ # TODO: remove this dependency to the brca dataset
+    data_g <- get(cancer) + data_g
+  } else {
+    data_g[, mcol] <- get(cancer) + data_g[, mcol]
+  }
+}
+total_g <- apply(data_g, 2, sum)
+P_g <- t(t(data_g) / total_g) # Calculates the probability of a gene to be up, 
+# down or no_change taking into account all the tumor patients
+
+
