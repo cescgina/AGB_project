@@ -204,11 +204,13 @@ for (cancer in tumors){
 } 
   return(c(max,max_cancer,"target",patient))
 }
+output_dataset = data.frame(c("Score","Predicition","Lable","Patient"))
 Pg_dataset = mget(Pg_tumor_state)
 for (tumor_type in tumors){
   temp_tumor = readRDS(paste0(tumor_type,"_test_RDS.bin"))
   for (patient in colnames(temp_tumor)){
     prediction = predict(patient,tumors,temp_tumor,best_genes,Pg_dataset)
     prediction[3]=tumor_type
+    rbind(output_dataset,prediction)
   }
 }
