@@ -52,9 +52,12 @@ for (cancer in tumors){
   # tumor_testing <- c(tumor_testing, tumor_test)
   
   # If we want to ensure randomness we should use:
-  selected<-sample(ncol(tumor), mig) 
+  # minimum is 210 and then we would have 80% for training and 20% for testing 
+  # for all genes
+  selected<-sample(ncol(tumor), 210) 
   tumor_training <- tumor[,selected] 
   tumor_test <- tumor[,-selected] 
+  saveRDS(tumor_test, file=paste0(cancer,"_test_RDS.bin"))
   rm(tumor)
   
   # Calculates the number of times each gene have each type of expression for 
@@ -63,15 +66,11 @@ for (cancer in tumors){
     tabulate(factor(x, levels = rownames_m), length(rownames_m)))
   row.names(freq_training) <- rownames_m
   
-  freq_test <- apply(tumor_test, 1, function(x)
-    tabulate(factor(x, levels = rownames_m), length(rownames_m)))
-  row.names(freq_test) <- rownames_m
-  
   
   # Adds one as a pseudocount before doing any probability
   # freq <- apply(freq, c(1,2), function(x){x+1})
   saveRDS(freq_training, file=paste0(cancer,"_training_RDS.bin"))
-  saveRDS(freq_test, file=paste0(cancer,"_test_RDS.bin"))
+  
   
   #From timet to time it is advaisable to restart the session to free memory of the
   #r session with ctrl + shift + F10, and continue where we left it
@@ -80,10 +79,6 @@ for (cancer in tumors){
 #   # This way we can calculate the probability of up, down or no_change in a tumor
 #   assign(file, table(unlist(tumor_training)))
 #   assign(file, table(unlist(tumor_test)))
-#   
-#   # Join the data with previous data
-#   tumor_training <- rbind(tumor_training, get(file))
-#   tumor_test <- rbind(tumor_test, get(file))
 }
 
 # Read the prepared data
@@ -112,7 +107,7 @@ patient_tumor <-  sapply(tumors, function(x)sum(get(x)[,1]))
 total_n_patients <- sum(patient_tumor)
 
 # Caclulates the probability of a gene to be up, down or no_change given it is 
-# of a given tumor
+# of a given tumor, ie the conditional probability of a gene
 Pg_tumor <- c() # Probability of genes of a given tumor of being up, down or no_
 P_cancer <- c() # Stores the prior probability 
 probability <- function(x, n_patient){
@@ -166,7 +161,7 @@ for (state in rownames_m){
 result <- entropy + val
 
 
-funct1 <- function(gene, dataset_list, states, prob){
+funct10 <- function(gene, dataset_list, states, prob){
   val <- 0
   for (dataset in dataset_list){
     if (gene %in% colnames(dataset)){
@@ -180,28 +175,63 @@ funct1 <- function(gene, dataset_list, states, prob){
   }
   val
 }
-results <- sapply(col_cancer, funct1, dataset_list = mget(Pg_tumor_state), 
+
+
+funct3 <- function(stat, pr, ge, datase){
+  if (datase[stat, ge] != 0){
+    return(datase[stat, ge ] * log2(datase[stat, ge]/pr[stat, ge]))
+  }
+  return(0)
+}
+
+funct2 <- function(dataset, state, pro, gen){
+  if (gen %in% colnames(dataset)){
+    sum(sapply(state, funct3, pr = pro, ge = gen, datase = dataset)) 
+  } else{
+    0
+  }
+}
+
+funct1 <- function(gene, dataset_list, states, prob){
+  sum(sapply(dataset_list, funct2, state = states, pro = prob, gen = gene))
+}
+
+results0 <- sapply(col_cancer, funct1, dataset_list = mget(Pg_tumor_state), 
+                   states = rownames_m, prob = P_g)
+
+results <- sapply(col_cancer, funct10, dataset_list = mget(Pg_tumor_state), 
                     states = rownames_m, prob = P_g)
 
 MI <- results + entropy
 saveRDS(MI, "mutual_information.bin")
 
+# Select which genes should be taken to decide to build the classifier
+quan <- quantile(MI)
+threshold <- quan[4]+1.5*(quan[4]-quan[2])
+relevant_genes <- names(MI[MI>threshold])
+
+# For each patient it should return which label and which score has using the 
+# information of the expressions of each gene.
+classifier <- function(patient, Prior_prob, Cond_prob){
+
+}
+
 #tumor_test has rownames=patients and colnames=genes
 #Probabilites in Pg_cancername
 predict <- function(patient,tumors,tumor_test,best_genes,Pg_tumor_state){
-max=0
-max_cancer=''
-for (cancer in tumors){
-  Probs = get(paste0("Pg_",cancer,"_state"))
-  P = log2(cancer_probs[cancer])
-  for (genes in best_genes){
-    P = P + log2(Probs[tumor_test[genes,patient],genes])
-  }
-  if (P > max){
-    max = P
-    max_cancer = cancer
-  }
-} 
+  max=0
+  max_cancer=''
+  for (cancer in tumors){
+    Probs = get(paste0("Pg_",cancer,"_state"))
+    P = log2(cancer_probs[cancer])
+    for (genes in best_genes){
+      P = P + log2(Probs[tumor_test[genes,patient],genes])
+    }
+    if (P > max){
+      max = P
+      max_cancer = cancer
+    }
+  } 
   return(c(max,max_cancer,"target",patient))
 }
 output_dataset = data.frame(c("Score","Predicition","Lable","Patient"))
@@ -213,4 +243,4 @@ for (tumor_type in tumors){
     prediction[3]=tumor_type
     rbind(output_dataset,prediction)
   }
-}
+  
