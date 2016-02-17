@@ -7,6 +7,7 @@ setwd(wd)
 # Initial options
 final_txt <- "_gene_zscore_full-filtered.txt"
 tumors <- c("brca", "kirc", "prad", "coad", "luad", "thca", "hnsc", "lusc")
+rownames_m <- c('up', 'no_change', 'down')
 
 # Needed to classify the data.frame when we read it
 factorize <- function(invec) {
@@ -56,15 +57,21 @@ for (cancer in tumors){
   tumor_test <- tumor[,-selected] 
   rm(tumor)
   
-  # Calculates the number of times each gene have each type of expression
-  rownames_m <- c('up', 'no_change', 'down')
-  freq <- apply(tumor_training, 1, function(x)
+  # Calculates the number of times each gene have each type of expression for 
+  # each dataset
+  freq_training <- apply(tumor_training, 1, function(x)
     tabulate(factor(x, levels = rownames_m), length(rownames_m)))
-  row.names(freq) <- rownames_m
+  row.names(freq_training) <- rownames_m
+  
+  freq_test <- apply(tumor_test, 1, function(x)
+    tabulate(factor(x, levels = rownames_m), length(rownames_m)))
+  row.names(freq_test) <- rownames_m
+  
   
   # Adds one as a pseudocount before doing any probability
   # freq <- apply(freq, c(1,2), function(x){x+1})
-  saveRDS(freq, file=paste0(cancer,"_training_RDS.bin"))
+  saveRDS(freq_training, file=paste0(cancer,"_training_RDS.bin"))
+  saveRDS(freq_test, file=paste0(cancer,"_test_RDS.bin"))
   
   #From timet to time it is advaisable to restart the session to free memory of the
   #r session with ctrl + shift + F10, and continue where we left it
@@ -157,3 +164,24 @@ for (state in rownames_m){
 
 # Calculates the mutual information of the given gene
 result <- entropy + val
+
+
+funct1 <- function(gene, dataset_list, states, prob){
+  val <- 0
+  for (dataset in dataset_list){
+    if (gene %in% colnames(dataset)){
+      for (state in states){
+        if (dataset[state, gene] != 0){
+          val <- val + dataset[state, gene ] * 
+            log2(dataset[state, gene]/prob[state, gene])
+        }
+      }
+    }
+  }
+  val
+}
+results <- sapply(col_cancer, funct1, dataset_list = mget(Pg_tumor_state), 
+                    states = rownames_m, prob = P_g)
+
+MI <- results + entropy
+saveRDS(MI, "mutual_information.bin")
