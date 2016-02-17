@@ -1,7 +1,7 @@
 # Makes a Naïve Bayes classifer for files of the TCGA
 
 # Setting work envrionment
-wd <- "/home/lluis/Documents/master/2TR/AGB/exercises"
+wd <- "../project_data"
 setwd(wd)
 
 # Initial options
@@ -185,3 +185,30 @@ results <- sapply(col_cancer, funct1, dataset_list = mget(Pg_tumor_state),
 
 MI <- results + entropy
 saveRDS(MI, "mutual_information.bin")
+
+#tumor_test has rownames=patients and colnames=genes
+#Probabilites in Pg_cancername
+predict <- function(patient,tumors,tumor_test,best_genes,Pg_tumor_state){
+max=0
+max_cancer=''
+for (cancer in tumors){
+  Probs = get(paste0("Pg_",cancer,"_state"))
+  P = log2(cancer_probs[cancer])
+  for (genes in best_genes){
+    P = P + log2(Probs[tumor_test[genes,patient],genes])
+  }
+  if (P > max){
+    max = P
+    max_cancer = cancer
+  }
+} 
+  return(c(max,max_cancer,"target",patient))
+}
+Pg_dataset = mget(Pg_tumor_state)
+for (tumor_type in tumors){
+  temp_tumor = readRDS(paste0(tumor_type,"_test_RDS.bin"))
+  for (patient in colnames(temp_tumor)){
+    prediction = predict(patient,tumors,temp_tumor,best_genes,Pg_dataset)
+    prediction[3]=tumor_type
+  }
+}
