@@ -212,21 +212,29 @@ relevant_genes <- names(MI[MI>threshold])
 
 # For each patient it should return which label and which score has using the 
 # information of the expressions of each gene.
-classifier <- function(patient, Prior_prob, Cond_prob){
-
-}
-
 #tumor_test has rownames=patients and colnames=genes
 #Probabilites in Pg_cancername
-predict <- function(patient,tumors,tumor_test,best_genes,Pg_tumor_state){
+predict <- function(patient,tumors,tumor_test,best_genes,cancer_probs){
   max=0
   max_cancer=''
   for (cancer in tumors){
     Probs = get(paste0("Pg_",cancer,"_state"))
     P = log2(cancer_probs[cancer])
+    print(P)
     for (genes in best_genes){
-      P = P + log2(Probs[tumor_test[genes,patient],genes])
+      p=tumor_test[genes,patient]
+#       if (genes == "136542"){
+#         ##Bug: some genes have NA values, in prad file gene 136542 has NA, since we omit
+#         #NAs, the program is not able to find a probability to do the prediction
+#         print(p)
+#         print(genes)
+#         print(cancer)
+#         print(Probs[p,genes])
+#       }
+      logval = tryCatch((log2(Probs[p,genes])),error= function(e){0})
+      P = P + logval
     }
+    ##Bug: P_cancer does not contain the probability of having lusc
     if (P > max){
       max = P
       max_cancer = cancer
@@ -239,8 +247,9 @@ Pg_dataset = mget(Pg_tumor_state)
 for (tumor_type in tumors){
   temp_tumor = readRDS(paste0(tumor_type,"_test_RDS.bin"))
   for (patient in colnames(temp_tumor)){
-    prediction = predict(patient,tumors,temp_tumor,best_genes,Pg_dataset)
+    prediction = predict(patient,tumors,temp_tumor,relevant_genes,P_cancer)
     prediction[3]=tumor_type
     rbind(output_dataset,prediction)
   }
+}
   
