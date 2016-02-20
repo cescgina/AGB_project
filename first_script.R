@@ -215,7 +215,7 @@ relevant_genes <- names(MI[MI>threshold])
 #tumor_test has rownames=patients and colnames=genes
 #Probabilites in Pg_cancername
 predict <- function(patient,tumors,tumor_test,best_genes,cancer_probs){
-  max=0
+  max=-1e6
   max_cancer=''
   for (cancer in tumors){
     Probs = get(paste0("Pg_",cancer,"_state"))
@@ -226,6 +226,8 @@ predict <- function(patient,tumors,tumor_test,best_genes,cancer_probs){
 #       if (genes == "136542"){
 #         ##Bug: some genes have NA values, in prad file gene 136542 has NA, since we omit
 #         #NAs, the program is not able to find a probability to do the prediction
+          ##Also we will need pseudocounts, as the probability of some genes to be in a 
+          #particular state may be 0
 #         print(p)
 #         print(genes)
 #         print(cancer)
@@ -233,8 +235,11 @@ predict <- function(patient,tumors,tumor_test,best_genes,cancer_probs){
 #       }
       logval = tryCatch((log2(Probs[p,genes])),error= function(e){0})
       P = P + logval
+      print(Probs[p,genes])
+      break
     }
-    ##Bug: P_cancer does not contain the probability of having lusc
+    ##Bug: P_cancer does not contain the probability of having lusc (seems to run OK now)
+    print(P)
     if (P > max){
       max = P
       max_cancer = cancer
@@ -242,14 +247,19 @@ predict <- function(patient,tumors,tumor_test,best_genes,cancer_probs){
   } 
   return(c(max,max_cancer,"target",patient))
 }
-output_dataset = data.frame(c("Score","Predicition","Lable","Patient"))
+
+output_dataset = data.frame()
 Pg_dataset = mget(Pg_tumor_state)
 for (tumor_type in tumors){
   temp_tumor = readRDS(paste0(tumor_type,"_test_RDS.bin"))
   for (patient in colnames(temp_tumor)){
     prediction = predict(patient,tumors,temp_tumor,relevant_genes,P_cancer)
     prediction[3]=tumor_type
-    rbind(output_dataset,prediction)
+    output_dataset<-rbind(output_dataset,prediction)
+    print(c("Patient: ",patient))
+    break
   }
+  print(paste0("Finished with ",tumor_type))
+  break
 }
-  
+colnames(output_dataset) <- c("Score","Predicition","Lable","Patient")
