@@ -1,4 +1,31 @@
+#!/usr/bin/env Rscript
 # Makes a Naïve Bayes classifer for files of the TCGA
+
+args <- commandArgs(trailingOnly=TRUE)
+n_args <- length(args)
+if (n_args <= 5){
+  msg = "This program trains Naïve Bayes clasificator and work with the data.\n"
+  msg2 = "-d Set the working directory.\n"
+  msg3 = "-c Set the names of the cancers to analyze: brca kirc prad in lowercase
+  and  space separated\n"
+  msg4 = "-o Set the name of the output file with the testing result.\n"
+  msg5 = "Example how to run it:$./first_script.R -d /home/user/ -c brca luad-o output \n"
+  msg6 = "-p Flag to count with pseudocounts it should be on the last position"
+  stop(msg, msg5, msg2, msg3, msg4, call.=FALSE)
+} else if (args[n_args] == "-p"){
+  wd <- args[2]
+  tumors <- args[c(4:(length(args)-3))]
+  output <- args[length(args)-1]
+  pseudocount = TRUE
+} else {
+  wd <- args[2]
+  tumors <- args[c(4:(length(args)-2))]
+  output <- args[length(args)]
+}
+
+# TODO: Remove the foll
+stop("Protect our computer to run the whole programm'by accident' ", call.=FALSE)
+# Quitar valor
 
 # Setting work envrionment
 wd <- "../project_data"
@@ -43,15 +70,8 @@ for (cancer in tumors){
   
   # Classify all the values
   tumor[] <- lapply(tumor, factorize)
-  
-  #Split for training and testing purposes
-  mig <- dim(tumor)[2]/2
-#   tumor_training <- tumor[,c(1:mig)]
-#   tumor_test <- tumor[,c((mig+1):(mig*2))]
-#   rm(tumor)
-  # tumor_testing <- c(tumor_testing, tumor_test)
-  
-  # If we want to ensure randomness we should use:
+
+    # If we want to ensure randomness we should use:
   # minimum is 210 and then we would have 80% for training and 20% for testing 
   # for all genes
   selected<-sample(ncol(tumor), 210) 
@@ -68,17 +88,14 @@ for (cancer in tumors){
   
   
   # Adds one as a pseudocount before doing any probability
-  # freq <- apply(freq, c(1,2), function(x){x+1})
+  if (pseudocount){
+    freq <- apply(freq_training, c(1,2), pseudocounts)
+  } 
   saveRDS(freq_training, file=paste0(cancer,"_training_RDS.bin"))
   
   
-  #From timet to time it is advaisable to restart the session to free memory of the
+  #From time to time it is advaisable to restart the session to free memory of the
   #r session with ctrl + shift + F10, and continue where we left it
-
-#   # Count how many of each type are and assign them to the name of the cancer
-#   # This way we can calculate the probability of up, down or no_change in a tumor
-#   assign(file, table(unlist(tumor_training)))
-#   assign(file, table(unlist(tumor_test)))
 }
 
 # Read the prepared data
