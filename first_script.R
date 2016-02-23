@@ -210,6 +210,11 @@ quan <- quantile(MI)
 threshold <- quan[4]+1.5*(quan[4]-quan[2])
 relevant_genes <- names(MI[MI>threshold])
 
+
+for (cancer in tumors) {
+  temp_tumor = readRDS(paste0(cancer,"_test_RDS.bin"))
+      relevant_genes<- intersect(relevant_genes,rownames(temp_tumor))
+}
 # For each patient it should return which label and which score has using the 
 # information of the expressions of each gene.
 #tumor_test has rownames=patients and colnames=genes
@@ -220,7 +225,6 @@ predict <- function(patient,tumors,tumor_test,best_genes,cancer_probs){
   for (cancer in tumors){
     Probs = get(paste0("Pg_",cancer,"_state"))
     P = log2(cancer_probs[cancer])
-    print(P)
     for (genes in best_genes){
       p=tumor_test[genes,patient]
 #       if (genes == "136542"){
@@ -233,13 +237,15 @@ predict <- function(patient,tumors,tumor_test,best_genes,cancer_probs){
 #         print(cancer)
 #         print(Probs[p,genes])
 #       }
-      logval = tryCatch((log2(Probs[p,genes])),error= function(e){0})
+      if (Probs[p,genes] == 0){
+        logval = 0
+      }
+      else {
+        logval = log2(Probs[p,genes])
+      }
+      #logval = tryCatch((log2(Probs[p,genes])),error= function(e){0})
       P = P + logval
-      print(Probs[p,genes])
-      break
     }
-    ##Bug: P_cancer does not contain the probability of having lusc (seems to run OK now)
-    print(P)
     if (P > max){
       max = P
       max_cancer = cancer
@@ -248,18 +254,28 @@ predict <- function(patient,tumors,tumor_test,best_genes,cancer_probs){
   return(c(max,max_cancer,"target",patient))
 }
 
-output_dataset = data.frame()
+output_dataset = data.frame(Score=numeric(),Prediction=character(),Label=character(),Patient=character(),stringsAsFactors = FALSE)
 Pg_dataset = mget(Pg_tumor_state)
 for (tumor_type in tumors){
   temp_tumor = readRDS(paste0(tumor_type,"_test_RDS.bin"))
   for (patient in colnames(temp_tumor)){
     prediction = predict(patient,tumors,temp_tumor,relevant_genes,P_cancer)
-    prediction[3]=tumor_type
-    output_dataset<-rbind(output_dataset,prediction)
-    print(c("Patient: ",patient))
-    break
+    prediction[3]=as.character(tumor_type)
+    output_dataset[nrow(output_dataset)+1,] <- prediction
   }
   print(paste0("Finished with ",tumor_type))
-  break
 }
-colnames(output_dataset) <- c("Score","Predicition","Lable","Patient")
+colnames(output_dataset) <- c("Score","Prediction","Label","Patient")
+
+#Calculate True Positives and False Positives
+positives<-function(x,y){
+  if (x==y){
+    return(1)
+  }
+  else  {
+    return(0)
+  }
+}
+positv <- apply(output_dataset, 1, function(x) {positives(x[2], x[3])})
+TP = sum(positv)
+FP = length(positv) - TP
