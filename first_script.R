@@ -240,7 +240,7 @@ predict <- function(patient,tumors,tumor_test,best_genes,cancer_probs){
   max=-1e6
   max_cancer=''
   for (cancer in tumors){
-    Probs = get(paste0("Pg_",cancer,"_state"))
+    Probs = get(paste0("Pg_",cancer))
     P = log2(cancer_probs[cancer])
     for (genes in best_genes){
       p=tumor_test[genes,patient]
@@ -282,7 +282,7 @@ for (tumor_type in tumors){
   }
   print(paste0("Finished with ",tumor_type))
 }
-colnames(output_dataset) <- c("Score","Prediction","Label","Patient")
+#colnames(output_dataset) <- c("Score","Prediction","Label","Patient")
 
 #Calculate True Positives and False Positives
 positives<-function(x,y){
