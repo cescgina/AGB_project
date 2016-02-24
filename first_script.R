@@ -21,19 +21,20 @@ if (n_args <= 5){
   wd <- args[2]
   tumors <- args[c(4:(length(args)-2))]
   output <- args[length(args)]
+  pseudocount = FALSE
 }
 
 # TODO: Remove the foll
-stop("Protect our computer to run the whole programm'by accident' ", call.=FALSE)
+#stop("Protect our computer to run the whole programm'by accident' ", call.=FALSE)
 # Quitar valor
 
 # Setting work envrionment
-wd <- "../project_data"
+#wd <- "../project_data"
 setwd(wd)
 
 # Initial options
 final_txt <- "_gene_zscore_full-filtered.txt"
-tumors <- c("brca", "kirc", "prad", "coad", "luad", "thca", "hnsc", "lusc")
+#tumors <- c("brca", "kirc", "prad", "coad", "luad", "thca", "hnsc", "lusc")
 rownames_m <- c('up', 'no_change', 'down')
 
 # Needed to classify the data.frame when we read it
@@ -282,8 +283,8 @@ for (tumor_type in tumors){
   }
   print(paste0("Finished with ",tumor_type))
 }
-#colnames(output_dataset) <- c("Score","Prediction","Label","Patient")
-
+saveRDS(output_dataset,file="output.bin")
+save(output_dataset,file=output)
 #Calculate True Positives and False Positives
 positives<-function(x,y){
   if (x==y){
@@ -296,3 +297,5 @@ positives<-function(x,y){
 positv <- apply(output_dataset, 1, function(x) {positives(x[2], x[3])})
 TP = sum(positv)
 FP = length(positv) - TP
+print(paste0("TP=",TP," : ",TP*100/(TP+FP),"%"))
+print(paste0("FP=",FP," : ",FP*100/(TP+FP),"%"))
