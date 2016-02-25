@@ -165,7 +165,7 @@ data_g <- matrix(0, nrow = 3, ncol = 20531)
 
 # Read the prepared data
 for (cancer in tumors){
-  # assign(cancer, readRDS(paste0(cancer, "_training_RDS.bin")))
+   assign(cancer, readRDS(paste0(cancer, "_training_RDS.bin")))
 
 # Calculates the probability of being up, down or no_change regardless of which 
 # type of cancer  it has been 
@@ -285,7 +285,7 @@ for (tumor_type in tumors){
 }
 
 saveRDS(output_dataset,file="output.bin")
-save(output_dataset,file=output)
+write.table(ouptput_dataset,file=output,sep="\t",row.names = FALSE)
 
 
 # To test the sensivity of the data:
